@@ -2,4 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Initial state - sections are off-screen */
+.split-container > div:first-child {
+  transform: translateX(-100%);
+}
 
+.split-container > div:last-child {
+  transform: translateY(100%);
+}
+
+/* Animated state - sections slide in */
+.split-container.animate > div:first-child {
+  transform: translateX(0);
+}
+
+.split-container.animate > div:last-child {
+  transform: translateY(0);
+} 
