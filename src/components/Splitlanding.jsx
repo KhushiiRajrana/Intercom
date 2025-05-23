@@ -19,13 +19,22 @@ const SplitLanding = () => {
   const buttonRef = useRef(null);
   const [userInput, setUserInput] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
-  const [selectedText, setSelectedText] = useState(null);
+  const [selectedText, setSelectedText] = useState('');
   const [selectedAiText, setSelectedAiText] = useState(null);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
   const [selectedFollowUpText, setSelectedFollowUpText] = useState(null);
   const [showFollowUpPopup, setShowFollowUpPopup] = useState(false);
   const [showLargeMessage, setShowLargeMessage] = useState(false);
   const [isClicked, setIsClicked] = useState(false);
+  const [selectedMessageText, setSelectedMessageText] = useState('');
+  const [showAskFinOption, setShowAskFinOption] = useState(false);
+  const [askFinPosition, setAskFinPosition] = useState({ x: 0, y: 0 });
+  const [selectedMessage, setSelectedMessage] = useState(null);
+  const [showPopup, setShowPopup] = useState(false);
+  const [showFormatToolbar, setShowFormatToolbar] = useState(false);
+  const [toolbarPosition, setToolbarPosition] = useState({ x: 0, y: 0 });
+  const [showRightPrompt, setShowRightPrompt] = useState(false);
+  const [showSuggestion, setShowSuggestion] = useState(true);
 
   const refundOptions = [
     'Getting a refund',
@@ -112,20 +121,21 @@ const SplitLanding = () => {
     setExpandedDetail(expandedDetail === number ? null : number);
   };
 
-  const handleTextSelection = () => {
+  const handleTextSelection = (event) => {
     const selection = window.getSelection();
     if (selection && selection.toString().length > 0) {
+      const selectedText = selection.toString();
+      setSelectedText(selectedText);
       const range = selection.getRangeAt(0);
       const rect = range.getBoundingClientRect();
       
-      // Position the menu above the selection
-      setFormatMenuPosition({
-        top: rect.top - 45, // Position above the text with some spacing
-        left: rect.left
+      setToolbarPosition({
+        x: rect.left,
+        y: rect.top - 40
       });
-      setShowFormatMenu(true);
+      setShowFormatToolbar(true);
     } else {
-      setShowFormatMenu(false);
+      setShowFormatToolbar(false);
     }
   };
 
@@ -187,7 +197,7 @@ const SplitLanding = () => {
   };
 
   const handleSendMessage = () => {
-    const newMessage = {
+      const newMessage = {
       type: 'agent',
       content: `We can only refund orders placed within the last 60 days, and your item must meet our requirements for condition to be returned. Please check when you placed your order before proceeding.
 
@@ -259,36 +269,68 @@ Once I've checked these details, if everything looks OK, I will send a return QR
   };
 
   const handleUserResponseClick = () => {
-    if (isClicked) return; // Prevent multiple clicks
-    
+    if (isClicked) return;
     console.log("Clicked!");
-    setShowLargeMessage(true);
-    setIsClicked(true); // Mark as clicked
-    
-    setTimeout(() => {
-      const followUpMessage = {
-        type: 'user',
-        content: "I placed the order over 60 days ago... Could you make an exception, please?",
-        timestamp: "1min",
-        isFollowUp: true
-      };
-      setMessages(prevMessages => [...prevMessages, followUpMessage]);
-      setShowLargeMessage(false);
-    }, 1500);
+    const followUpMessage = {
+      type: 'user',
+      content: "I placed the order over 60 days ago... Could you make an exception, please?",
+      timestamp: "1min",
+      isFollowUp: true
+    };
+    setMessages(prevMessages => [...prevMessages, followUpMessage]);
+    setIsClicked(true);
   };
 
-  const handleAiTextDoubleClick = (text, event) => {
-    const rect = event.target.getBoundingClientRect();
-    setPopupPosition({
-      x: rect.left,
-      y: rect.top - 10 // slightly above the clicked text
-    });
-    setSelectedAiText(text);
+  const handleMessageTextSelection = (event) => {
+    const selection = window.getSelection();
+    if (selection && selection.toString().length > 0) {
+      const selectedText = selection.toString();
+      setSelectedMessageText(selectedText);
+      
+      // Get selection coordinates
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      
+      // Position the Ask Fin option above the selection
+      setAskFinPosition({
+        x: rect.left + (rect.width / 2),
+        y: rect.top - 30
+      });
+      
+      setShowAskFinOption(true);
+      // Prevent default behavior
+      event.stopPropagation();
+    } else {
+      setShowAskFinOption(false);
+    }
   };
 
-  const handleFollowUpTextClick = (event) => {
-    const text = "I placed the order over 60 days ago 😔 Could you make an exception, please?";
-    setSelectedFollowUpText(text);
+  const handleAskFin = () => {
+    // Handle asking Fin about the selected text
+    console.log('Asking Fin about:', selectedMessageText);
+    setShowAskFinOption(false);
+    // Add your logic here for what happens when Ask Fin is clicked
+  };
+
+  const handleMessageClick = (event) => {
+    event.stopPropagation();
+    setShowPopup(true);
+  };
+
+  const handleClosePopup = () => {
+    setShowPopup(false);
+  };
+
+  const handleAskFinClick = () => {
+    setShowFormatToolbar(false);
+    setShowRightPrompt(true);
+    setSelectedQuestion(selectedText);
+    window.getSelection().removeAllRanges();
+  };
+
+  const handleSuggestionClick = () => {
+    setShowSuggestion(false);
+    setSelectedQuestion("What if the order was over 60 days ago?");
   };
 
   // Scroll to bottom when new message is added
@@ -385,9 +427,9 @@ Once I've checked these details, if everything looks OK, I will send a return QR
                   <div ref={chatContainerRef} className="flex-1 overflow-y-auto px-6 py-4 relative">
                     {/* Popup for selected text */}
                     {selectedAiText && (
-                      <div 
+                  <div 
                         className="absolute bg-white shadow-lg border border-gray-200 rounded-lg p-4 z-50 max-w-md"
-                        style={{ 
+                    style={{
                           left: `${popupPosition.x}px`, 
                           top: `${popupPosition.y}px`,
                           transform: 'translateY(-100%)'
@@ -412,16 +454,20 @@ Once I've checked these details, if everything looks OK, I will send a return QR
                     {/* Messages */}
                     <div className="max-w-3xl mx-auto space-y-4">
                       {messages.map((message, index) => (
-                        <div key={index} className={`flex items-start gap-2 ${message.type === 'user' ? '' : 'justify-end'}`}>
+                        <div 
+                          key={index} 
+                          className={`flex items-start gap-2 ${message.type === 'user' ? '' : 'justify-end'}`}
+                          onClick={message.type === 'user' ? handleMessageClick : undefined}
+                        >
                           {message.type === 'user' && (
                             <div className="w-6 h-6 rounded-full bg-gray-200 flex-shrink-0 mt-1"></div>
                           )}
                           <div className="flex flex-col">
                             <div className={`${
                               message.type === 'user' 
-                                ? 'bg-white border border-gray-200' 
+                                ? 'bg-white shadow-sm' 
                                 : 'bg-[#f5f5f5]'
-                            } rounded-lg px-4 py-3 max-w-[65%]`}>
+                            } rounded-2xl px-4 py-3 max-w-[65%] cursor-pointer`}>
                               <div className="text-sm text-gray-800" style={{ lineHeight: '1.5' }}>
                                 {message.content}
                               </div>
@@ -436,39 +482,53 @@ Once I've checked these details, if everything looks OK, I will send a return QR
                       ))}
                     </div>
 
-                    {/* Keep only one instance of the clickable text, and hide it after click */}
-                    {!isClicked && (
-                      <div className="max-w-3xl mx-auto mt-4">
+                    {/* Message Popup */}
+                    {showPopup && (
+                      <div 
+                        className="fixed inset-0 flex items-center justify-center z-50 bg-black/5"
+                        onClick={handleClosePopup}
+                      >
                         <div 
-                          onClick={handleUserResponseClick}
-                          className="bg-white rounded-lg shadow-sm p-3 cursor-pointer hover:bg-gray-50 transition-colors inline-block"
+                          className="bg-white rounded-2xl shadow-lg w-[600px] mx-4"
+                          onClick={e => e.stopPropagation()}
+                          onMouseUp={handleTextSelection}
                         >
-                          <p className="text-sm text-gray-800">
-                            I placed the order over 60 days ago... Could you make an exception, please?
-                          </p>
+                          <div className="p-6">
+                            <div className="flex items-start gap-3">
+                              <div className="w-8 h-8 rounded-full bg-gray-200 flex-shrink-0"></div>
+                              <div className="flex-1">
+                                <p className="text-sm text-gray-800" style={{ lineHeight: '1.5' }}>
+                                  I placed the order over 60 days ago... Could you make an exception, please?
+                                </p>
+                                <div className="mt-2">
+                                  <span className="text-xs text-gray-500">1min</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}
                   </div>
 
                   {/* Composer */}
-                  {showComposerText && (
+                      {showComposerText && (
                     <div className="flex flex-col p-4">
-                      <div className="flex items-end gap-2 justify-end">
+                          <div className="flex items-end gap-2 justify-end">
                         <div className="bg-white rounded-lg p-4 max-w-[65%] shadow-sm w-full">
-                          <div 
-                            ref={textContainerRef}
+                              <div 
+                                ref={textContainerRef}
                             className="text-sm text-gray-600 mb-4 cursor-text select-text outline-none min-h-[120px]" 
-                            contentEditable
-                            suppressContentEditableWarning
+                                contentEditable
+                                suppressContentEditableWarning
                             placeholder="Type your message..."
-                          >
-                            <p className="mb-2">
-                              We can only refund orders placed within the last 60 days, and your item must meet our requirements for condition to be returned. Please check when you placed your order before proceeding.
-                            </p>
-                            <p>
-                              Once I've checked these details, if everything looks OK, I will send a return QR code which you can use to post the item back to us. Your refund will be automatically issued once you put it in the post.
-                            </p>
+                              >
+                                <p className="mb-2">
+                                  We can only refund orders placed within the last 60 days, and your item must meet our requirements for condition to be returned. Please check when you placed your order before proceeding.
+                                </p>
+                                <p>
+                                  Once I've checked these details, if everything looks OK, I will send a return QR code which you can use to post the item back to us. Your refund will be automatically issued once you put it in the post.
+                                </p>
                           </div>
                           <div className="flex justify-between items-center">
                             <div className="flex items-center gap-3">
@@ -477,88 +537,113 @@ Once I've checked these details, if everything looks OK, I will send a return QR
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                               </button>
-                            </div>
-                            <button 
-                              onClick={handleSendMessage}
+                              </div>
+                              <button 
+                                onClick={handleSendMessage}
                               className="px-6 py-2 bg-black text-white text-sm font-medium rounded-md hover:bg-gray-900 transition-colors"
-                            >
-                              Send
-                            </button>
+                              >
+                                Send
+                              </button>
+                          </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
+
+                  {/* Ask Fin Copilot Option */}
+                  {showAskFinOption && (
+                    <div 
+                      className="fixed z-[60] transform -translate-x-1/2"
+                      style={{ 
+                        left: `${askFinPosition.x}px`, 
+                        top: `${askFinPosition.y}px` 
+                      }}
+                    >
+                      <button
+                        onClick={handleAskFin}
+                        className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg shadow-md"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-5 h-5 bg-[#0052CC] rounded-sm flex items-center justify-center">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-4h2v2h-2v-2zm1.61-9.96c-2.06-.3-3.88.97-4.43 2.79-.18.58.26 1.17.87 1.17h.2c.41 0 .74-.29.88-.67.32-.89 1.27-1.5 2.3-1.28.95.2 1.65 1.13 1.57 2.1-.1 1.34-1.62 1.63-2.45 2.88 0 .01-.01.01-.01.02-.01.02-.02.03-.03.05-.09.15-.18.32-.25.5-.01.03-.03.05-.04.08-.01.02-.01.04-.02.07-.12.34-.2.75-.2 1.25h2c0-.42.11-.77.28-1.07.02-.03.03-.06.05-.09.08-.14.18-.27.28-.39.01-.01.02-.03.03-.04.1-.12.21-.23.33-.34.96-.91 2.26-1.65 1.99-3.56-.24-1.74-1.61-3.21-3.35-3.47z" fill="white"/>
+                            </svg>
+                          </div>
+                          <span className="text-sm font-medium">Ask Fin Copilot</span>
+                        </div>
+                      </button>
                     </div>
                   )}
 
-                  {/* Add this right after the main chat container and before the fixed bottom input */}
-                  {selectedText && (
-                    <div className="fixed inset-0 flex items-start justify-center z-50" style={{ backgroundColor: 'rgba(255, 255, 255, 0.98)' }}>
-                      <div className="w-full max-w-3xl px-6 py-3">
-                        <div className="flex items-start gap-2">
-                          <div className="w-6 h-6 rounded-full bg-gray-200 flex-shrink-0"></div>
-                          <div className="flex-1">
-                            <div className="bg-[#f8f8f8] rounded-lg px-4 py-3">
-                              <p className="text-sm text-gray-800">
-                                {selectedText}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs text-gray-500">1min</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                  {/* Formatting Toolbar */}
+                  {showFormatToolbar && (
+                    <div 
+                      className="fixed z-[60]"
+                      style={{ 
+                        left: `${toolbarPosition.x}px`, 
+                        top: `${toolbarPosition.y}px` 
+                      }}
+                    >
+                      <div className="flex items-center gap-1 bg-white rounded-lg shadow-lg border border-gray-100 p-1">
+                        <button 
+                          onClick={handleAskFinClick}
+                          className="flex items-center gap-2 px-2 py-1.5 bg-black rounded-md"
+                        >
+                          <span className="text-white text-xs font-medium">Ask Fin</span>
+                        </button>
+                        <button className="p-1.5 text-gray-600 hover:text-gray-800">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-4l-4 4z" />
+                          </svg>
+                        </button>
+                        <button className="p-1.5 text-gray-600 hover:text-gray-800 font-medium">B</button>
+                        <button className="p-1.5 text-gray-600 hover:text-gray-800 italic">i</button>
+                        <button className="p-1.5 text-gray-600 hover:text-gray-800">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                          </svg>
+                        </button>
+                        <button className="p-1.5 text-gray-600 hover:text-gray-800">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+                          </svg>
+                        </button>
                     </div>
-                  )}
-
-                  {/* Large message popup */}
-                  {showLargeMessage && (
-                    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-10">
-                      <div className="bg-white rounded-lg shadow-lg p-4 max-w-md w-full mx-4">
-                        <div className="flex items-start gap-2">
-                          <div className="w-6 h-6 rounded-full bg-gray-200 flex-shrink-0"></div>
-                          <div className="flex-1">
-                            <p className="text-sm text-gray-800">
-                              I placed the order over 60 days ago... Could you make an exception, please?
-                            </p>
-                            <div className="mt-1">
-                              <span className="text-xs text-gray-500">1min</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                  </div>
                   )}
 
                   {/* Fixed bottom input */}
                   <div className="sticky bottom-0 bg-white border-t border-gray-200">
                     <div className="max-w-3xl mx-auto p-4">
-                      <div className="flex justify-end">
-                        <form onSubmit={handleAskQuestion} className="w-[300px] relative">
-                          <input 
-                            type="text" 
-                            value={userInput}
-                            onChange={(e) => setUserInput(e.target.value)}
-                            placeholder="Ask a question..." 
-                            className="w-full px-4 py-2 text-sm text-gray-600 bg-gray-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5"
-                          />
-                          {isAiTyping && (
-                            <div className="absolute -top-8 right-0 bg-gray-100 rounded-lg px-3 py-1 text-xs text-gray-500">
-                              AI is typing...
+                      <div className="flex flex-col space-y-2">
+                        {showSuggestion && (
+                          <div 
+                            onClick={handleSuggestionClick}
+                            className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors w-fit"
+                          >
+                            <span className="text-sm text-gray-800">What if the order was over 60 days ago?</span>
+                            <div className="w-5 h-5 bg-gray-100 rounded-full flex items-center justify-center">
+                              <svg className="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
                             </div>
-                          )}
-                        </form>
-                      </div>
-                    </div>
-                    <div className="border-t border-gray-200 p-3">
-                      <div className="max-w-3xl mx-auto flex items-center">
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-400 text-sm">Chat</span>
-                          <div className="flex items-center gap-2">
-                            <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
-                            <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
-                            <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
                           </div>
+                        )}
+                        <div className="flex justify-end">
+                          <form onSubmit={handleAskQuestion} className="w-[300px] relative">
+                      <input 
+                        type="text" 
+                              value={userInput}
+                              onChange={(e) => setUserInput(e.target.value)}
+                              placeholder="Ask a question..." 
+                              className="w-full px-4 py-2 text-sm text-gray-600 bg-gray-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5"
+                            />
+                            {isAiTyping && (
+                              <div className="absolute -top-8 right-0 bg-gray-100 rounded-lg px-3 py-1 text-xs text-gray-500">
+                                AI is typing...
+                              </div>
+                            )}
+                          </form>
                         </div>
                       </div>
                     </div>
@@ -759,7 +844,7 @@ Once I've checked these details, if everything looks OK, I will send a return QR
         <div className="max-w-3xl mx-auto px-4 py-2 flex items-center gap-4">
           <button className="text-gray-600 hover:text-gray-800">
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-4h2v2h-2zm1.61-9.96c-2.06-.3-3.88.97-4.43 2.79-.18.58.26 1.17.87 1.17h.2c.41 0 .74-.29.88-.67.32-.89 1.27-1.5 2.3-1.28.95.2 1.65 1.13 1.57 2.1-.1 1.34-1.62 1.63-2.45 2.88 0 .01-.01.01-.01.02-.01.02-.02.03-.03.05-.09.15-.18.32-.25.5-.01.03-.03.05-.04.08-.01.02-.01.04-.02.07-.12.34-.2.75-.2 1.25h2c0-.42.11-.77.28-1.07.02-.03.03-.06.05-.09.08-.14.18-.27.28-.39.01-.01.02-.03.03-.04.1-.12.21-.23.33-.34.96-.91 2.26-1.65 1.99-3.56-.24-1.74-1.61-3.21-3.35-3.47z"/>
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-4h2v2h-2v-2zm1.61-9.96c-2.06-.3-3.88.97-4.43 2.79-.18.58.26 1.17.87 1.17h.2c.41 0 .74-.29.88-.67.32-.89 1.27-1.5 2.3-1.28.95.2 1.65 1.13 1.57 2.1-.1 1.34-1.62 1.63-2.45 2.88 0 .01-.01.01-.01.02-.01.02-.02.03-.03.05-.09.15-.18.32-.25.5-.01.03-.03.05-.04.08-.01.02-.01.04-.02.07-.12.34-.2.75-.2 1.25h2c0-.42.11-.77.28-1.07.02-.03.03-.06.05-.09.08-.14.18-.27.28-.39.01-.01.02-.03.03-.04.1-.12.21-.23.33-.34.96-.91 2.26-1.65 1.99-3.56-.24-1.74-1.61-3.21-3.35-3.47z"/>
             </svg>
           </button>
           <button className="text-gray-600 hover:text-gray-800">
