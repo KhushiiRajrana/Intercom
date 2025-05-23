@@ -17,6 +17,15 @@ const SplitLanding = () => {
   const formatMenuRef = useRef(null);
   const chatContainerRef = useRef(null);
   const buttonRef = useRef(null);
+  const [userInput, setUserInput] = useState('');
+  const [isAiTyping, setIsAiTyping] = useState(false);
+  const [selectedText, setSelectedText] = useState(null);
+  const [selectedAiText, setSelectedAiText] = useState(null);
+  const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
+  const [selectedFollowUpText, setSelectedFollowUpText] = useState(null);
+  const [showFollowUpPopup, setShowFollowUpPopup] = useState(false);
+  const [showLargeMessage, setShowLargeMessage] = useState(false);
+  const [isClicked, setIsClicked] = useState(false);
 
   const refundOptions = [
     'Getting a refund',
@@ -203,6 +212,85 @@ Once I've checked these details, if everything looks OK, I will send a return QR
     setSelectedQuestion(null); // Reset the selected question to show initial AI Copilot state
   };
 
+  const handleAskQuestion = (e) => {
+    e.preventDefault();
+    if (!userInput.trim()) return;
+
+    // Add user message
+    const userMessage = {
+      type: 'user',
+      content: userInput,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    setMessages(prevMessages => [...prevMessages, userMessage]);
+
+    // Clear input
+    setUserInput('');
+
+    // Show AI is typing
+    setIsAiTyping(true);
+
+    // Simulate AI response after a short delay
+    setTimeout(() => {
+      const aiResponse = {
+        type: 'agent',
+        content: generateAIResponse(userInput),
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages(prevMessages => [...prevMessages, aiResponse]);
+      setIsAiTyping(false);
+    }, 1000);
+  };
+
+  const generateAIResponse = (question) => {
+    // This is a simple example - you can replace this with actual AI responses
+    const responses = {
+      default: "I understand your question. Let me help you with that. Could you please provide more details?",
+      refund: "Let me check your order details and eligibility for a refund. This will help us process your request faster.",
+      shipping: "I can help you track your order. Please provide your order number and I'll check the status for you.",
+      product: "I'd be happy to help you with product information. What specific details would you like to know?"
+    };
+
+    question = question.toLowerCase();
+    if (question.includes('refund')) return responses.refund;
+    if (question.includes('shipping') || question.includes('delivery')) return responses.shipping;
+    if (question.includes('product')) return responses.product;
+    return responses.default;
+  };
+
+  const handleUserResponseClick = () => {
+    if (isClicked) return; // Prevent multiple clicks
+    
+    console.log("Clicked!");
+    setShowLargeMessage(true);
+    setIsClicked(true); // Mark as clicked
+    
+    setTimeout(() => {
+      const followUpMessage = {
+        type: 'user',
+        content: "I placed the order over 60 days ago... Could you make an exception, please?",
+        timestamp: "1min",
+        isFollowUp: true
+      };
+      setMessages(prevMessages => [...prevMessages, followUpMessage]);
+      setShowLargeMessage(false);
+    }, 1500);
+  };
+
+  const handleAiTextDoubleClick = (text, event) => {
+    const rect = event.target.getBoundingClientRect();
+    setPopupPosition({
+      x: rect.left,
+      y: rect.top - 10 // slightly above the clicked text
+    });
+    setSelectedAiText(text);
+  };
+
+  const handleFollowUpTextClick = (event) => {
+    const text = "I placed the order over 60 days ago 😔 Could you make an exception, please?";
+    setSelectedFollowUpText(text);
+  };
+
   // Scroll to bottom when new message is added
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -294,7 +382,33 @@ Once I've checked these details, if everything looks OK, I will send a return QR
 
                 {/* Main chat area */}
                 <div className="flex-1 flex flex-col bg-white">
-                  <div ref={chatContainerRef} className="flex-1 overflow-y-auto px-6 py-4">
+                  <div ref={chatContainerRef} className="flex-1 overflow-y-auto px-6 py-4 relative">
+                    {/* Popup for selected text */}
+                    {selectedAiText && (
+                      <div 
+                        className="absolute bg-white shadow-lg border border-gray-200 rounded-lg p-4 z-50 max-w-md"
+                        style={{ 
+                          left: `${popupPosition.x}px`, 
+                          top: `${popupPosition.y}px`,
+                          transform: 'translateY(-100%)'
+                        }}
+                      >
+                        <div className="flex items-start gap-2">
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-900">
+                              {selectedAiText}
+                            </p>
+                          </div>
+                          <button 
+                            onClick={() => setSelectedAiText(null)}
+                            className="text-gray-400 hover:text-gray-600"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Messages */}
                     <div className="max-w-3xl mx-auto space-y-4">
                       {messages.map((message, index) => (
@@ -302,18 +416,39 @@ Once I've checked these details, if everything looks OK, I will send a return QR
                           {message.type === 'user' && (
                             <div className="w-6 h-6 rounded-full bg-gray-200 flex-shrink-0 mt-1"></div>
                           )}
-                          <div className={`${
-                            message.type === 'user' 
-                              ? 'bg-white border border-gray-200' 
-                              : 'bg-[#f5f5f5]'
-                          } rounded-lg px-4 py-3 max-w-[65%]`}>
-                            <div className="text-sm text-gray-800" style={{ lineHeight: '1.5' }}>
-                              {message.content}
+                          <div className="flex flex-col">
+                            <div className={`${
+                              message.type === 'user' 
+                                ? 'bg-white border border-gray-200' 
+                                : 'bg-[#f5f5f5]'
+                            } rounded-lg px-4 py-3 max-w-[65%]`}>
+                              <div className="text-sm text-gray-800" style={{ lineHeight: '1.5' }}>
+                                {message.content}
+                              </div>
                             </div>
+                            {message.isFollowUp && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className="text-xs text-gray-500">{message.timestamp}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}
                     </div>
+
+                    {/* Keep only one instance of the clickable text, and hide it after click */}
+                    {!isClicked && (
+                      <div className="max-w-3xl mx-auto mt-4">
+                        <div 
+                          onClick={handleUserResponseClick}
+                          className="bg-white rounded-lg shadow-sm p-3 cursor-pointer hover:bg-gray-50 transition-colors inline-block"
+                        >
+                          <p className="text-sm text-gray-800">
+                            I placed the order over 60 days ago... Could you make an exception, please?
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Composer */}
@@ -355,15 +490,64 @@ Once I've checked these details, if everything looks OK, I will send a return QR
                     </div>
                   )}
 
+                  {/* Add this right after the main chat container and before the fixed bottom input */}
+                  {selectedText && (
+                    <div className="fixed inset-0 flex items-start justify-center z-50" style={{ backgroundColor: 'rgba(255, 255, 255, 0.98)' }}>
+                      <div className="w-full max-w-3xl px-6 py-3">
+                        <div className="flex items-start gap-2">
+                          <div className="w-6 h-6 rounded-full bg-gray-200 flex-shrink-0"></div>
+                          <div className="flex-1">
+                            <div className="bg-[#f8f8f8] rounded-lg px-4 py-3">
+                              <p className="text-sm text-gray-800">
+                                {selectedText}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-gray-500">1min</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Large message popup */}
+                  {showLargeMessage && (
+                    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-10">
+                      <div className="bg-white rounded-lg shadow-lg p-4 max-w-md w-full mx-4">
+                        <div className="flex items-start gap-2">
+                          <div className="w-6 h-6 rounded-full bg-gray-200 flex-shrink-0"></div>
+                          <div className="flex-1">
+                            <p className="text-sm text-gray-800">
+                              I placed the order over 60 days ago... Could you make an exception, please?
+                            </p>
+                            <div className="mt-1">
+                              <span className="text-xs text-gray-500">1min</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Fixed bottom input */}
                   <div className="sticky bottom-0 bg-white border-t border-gray-200">
                     <div className="max-w-3xl mx-auto p-4">
                       <div className="flex justify-end">
-                        <input 
-                          type="text" 
-                          placeholder="Ask a question..." 
-                          className="w-[300px] px-4 py-2 text-sm text-gray-600 bg-gray-50 rounded-lg focus:outline-none"
-                        />
+                        <form onSubmit={handleAskQuestion} className="w-[300px] relative">
+                          <input 
+                            type="text" 
+                            value={userInput}
+                            onChange={(e) => setUserInput(e.target.value)}
+                            placeholder="Ask a question..." 
+                            className="w-full px-4 py-2 text-sm text-gray-600 bg-gray-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5"
+                          />
+                          {isAiTyping && (
+                            <div className="absolute -top-8 right-0 bg-gray-100 rounded-lg px-3 py-1 text-xs text-gray-500">
+                              AI is typing...
+                            </div>
+                          )}
+                        </form>
                       </div>
                     </div>
                     <div className="border-t border-gray-200 p-3">
@@ -439,13 +623,6 @@ Once I've checked these details, if everything looks OK, I will send a return QR
                                 </svg>
                               </div>
                             )}
-                          </div>
-                          <div className="mt-4">
-                            <input 
-                              type="text" 
-                              placeholder="Ask a question..."
-                              className="w-full px-4 py-2 text-sm text-gray-600 bg-gray-50 rounded-lg focus:outline-none"
-                            />
                           </div>
                         </div>
                       </>
@@ -535,6 +712,18 @@ Once I've checked these details, if everything looks OK, I will send a return QR
                                           )
                                         ))}
                                       </ul>
+                                    </div>
+
+                                    {/* Update the clickable text box in the middle section */}
+                                    <div className="mt-4 flex justify-center">
+                                      <div 
+                                        onClick={handleUserResponseClick}
+                                        className="bg-white rounded-lg shadow-sm p-3 cursor-pointer hover:bg-gray-50 transition-colors max-w-md w-full"
+                                      >
+                                        <p className="text-sm text-gray-800">
+                                          I placed the order over 60 days ago... Could you make an exception, please?
+                                        </p>
+                                      </div>
                                     </div>
                                   </div>
 
