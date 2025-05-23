@@ -180,16 +180,9 @@ const SplitLanding = () => {
   const handleSendMessage = () => {
     const newMessage = {
       type: 'agent',
-      content: `We understand that sometimes a purchase may not meet your expectations, and you may need to request a refund.
+      content: `We can only refund orders placed within the last 60 days, and your item must meet our requirements for condition to be returned. Please check when you placed your order before proceeding.
 
-To assist you with your refund request, could you please provide your order ID and proof of purchase.
-
-Please note:
-We can only refund orders placed within the last 60 days, and your item must meet our requirements for condition to be returned. Please check when you placed your order before proceeding.
-
-Once I've checked these details, if everything looks OK, I will send a return QR code which you can use to post the item back to us. Your refund will be automatically issued once you put it in the post.
-
-Thanks for your cooperation!`,
+Once I've checked these details, if everything looks OK, I will send a return QR code which you can use to post the item back to us. Your refund will be automatically issued once you put it in the post.`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
     
@@ -207,6 +200,7 @@ Thanks for your cooperation!`,
     
     setShowComposerText(false);
     setShowResponse(false);
+    setSelectedQuestion(null); // Reset the selected question to show initial AI Copilot state
   };
 
   // Scroll to bottom when new message is added
@@ -446,13 +440,11 @@ Thanks for your cooperation!`,
                               </div>
                             )}
                           </div>
-                        </div>
-                        <div className="mt-4">
-                          <div className="relative">
+                          <div className="mt-4">
                             <input 
                               type="text" 
                               placeholder="Ask a question..."
-                              className="w-full px-4 py-3 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-black/5"
+                              className="w-full px-4 py-2 text-sm text-gray-600 bg-gray-50 rounded-lg focus:outline-none"
                             />
                           </div>
                         </div>
@@ -529,41 +521,6 @@ Thanks for your cooperation!`,
                                         </button>
                                       </p>
                                     </div>
-
-                                    {/* Composer popup */}
-                                    {showComposerText && (
-                                      <div 
-                                        className="fixed bg-white rounded-lg shadow-lg border border-gray-100 w-[280px]"
-                                        style={{
-                                          left: '50%',
-                                          top: '50%',
-                                          transform: 'translate(-50%, -50%)',
-                                          zIndex: 1000
-                                        }}
-                                      >
-                                        <div className="p-4">
-                                          <div 
-                                            ref={textContainerRef}
-                                            className="text-sm text-gray-600 mb-4 cursor-text select-text" 
-                                            contentEditable
-                                            suppressContentEditableWarning
-                                          >
-                                            <p className="mb-2">
-                                              We can only refund orders placed within the last 60 days, and your item must meet our requirements for condition to be returned. Please check when you placed your order before proceeding.
-                                            </p>
-                                            <p>
-                                              Once I've checked these details, if everything looks OK, I will send a return QR code which you can use to post the item back to us. Your refund will be automatically issued once you put it in the post.
-                                            </p>
-                                          </div>
-                                          <button 
-                                            onClick={() => setShowComposerText(false)}
-                                            className="w-full flex items-center justify-center gap-2 text-sm text-white bg-black rounded-lg px-3 py-2 hover:bg-gray-900"
-                                          >
-                                            Send
-                                          </button>
-                                        </div>
-                                      </div>
-                                    )}
 
                                     {/* Original bullet points */}
                                     <div>
